@@ -1,0 +1,8 @@
+{
+  "Work time in minutes.": "每次的工作时长（分钟）",
+  "Break time in minutes.": "每次的休息时长（分钟）",
+  "Whether reminding is on all tasks by default.": "是否默认对所有任务都开启提醒。",
+  "A list of keywords separated by comma, reminding is on for a task if it has any of the keywords.": "空格隔开的关键字列表，如果一个任务描述中包含任一关键字则对其开启提醒。",
+  "Break Time": "该休息了",
+  "Work Time Again": "该工作了"
+}
