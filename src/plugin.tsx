@@ -39,7 +39,7 @@ async function main() {
     {
       key: "onIf",
       type: "string",
-      default: "",
+      default: "#.remind",
       title: "",
       description: t(
         "A list of keywords separated by comma, reminding is on for a task if it has any of the keywords.",
@@ -124,7 +124,7 @@ async function triggerWorkTimer(eid: number, block: BlockEntity) {
 
   const timerHandle = setTimeout(
     () => onWorkTimer(eid),
-    3000, //(+logseq.settings?.workLength ?? 25) * 60 * 1000,
+    (+logseq.settings?.workLength ?? 25) * 60 * 1000,
   )
   workTimers.set(eid, {
     uuid: block.uuid,
@@ -136,7 +136,7 @@ async function triggerWorkTimer(eid: number, block: BlockEntity) {
 function triggerBreakTimer(eid: number, data: TimerData) {
   const timerHandle = setTimeout(
     () => onBreakTimer(eid),
-    3000, //(+logseq.settings?.breakLength ?? 5) * 60 * 1000,
+    (+logseq.settings?.breakLength ?? 5) * 60 * 1000,
   )
   breakTimers.set(eid, { ...data, timerHandle })
 }
