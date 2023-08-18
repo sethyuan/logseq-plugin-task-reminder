@@ -34,7 +34,7 @@ async function main() {
       type: "boolean",
       default: false,
       title: "",
-      description: t("Whether reminding is on all tasks by default."),
+      description: t("Whether reminding is on for all tasks by default."),
     },
     {
       key: "onIf",
