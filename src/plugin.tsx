@@ -67,35 +67,17 @@ async function main() {
   const taskObserver = new MutationObserver(async (mutations) => {
     for (const mutation of mutations) {
       const target = mutation.target as HTMLElement | null
-      if (target?.classList.contains("editor-wrapper")) continue
+      if (target?.closest(".editor-wrapper")) continue
 
       for (const node of mutation.addedNodes) {
         if (!isHTMLElement(node)) continue
 
         const blockEl = node.closest(".ls-block[blockid]")
-        const selfRefs = blockEl?.getAttribute("data-refs-self")
+        renderTimerIfAny(blockEl)
 
-        if (
-          selfRefs == null ||
-          !/"(?:later|todo|now|doing|done|waiting|canceled)"/.test(selfRefs)
-        )
-          continue
-
-        const block = await logseq.Editor.getBlock(
-          blockEl!.getAttribute("blockid")!,
-        )
-
-        if (block == null) continue
-
-        const key = `countdown-${block.id}`
-
-        if (parent.document.getElementById(key) != null) return
-
-        const timerData = workTimers.get(block.id)
-
-        if (timerData && timerData.at > Date.now()) {
-          renderTimer(block.id, block.uuid)
-          return
+        const blockEls = node.querySelectorAll(".ls-block[blockid]")
+        for (const el of blockEls) {
+          renderTimerIfAny(el)
         }
       }
     }
@@ -270,6 +252,8 @@ function renderTimer(eid: number, uuid: string) {
   const key = `countdown-${eid}`
   const path = `.ls-block[blockid="${uuid}"]:not([data-query]) span.inline`
 
+  if (parent.document.querySelector(path) == null) return
+
   logseq.provideUI({
     key,
     path,
@@ -298,6 +282,31 @@ function unrenderTimer(eid: number, uuid: string) {
       display: "inline",
     },
   })
+}
+
+async function renderTimerIfAny(blockEl: Element | null) {
+  const selfRefs = blockEl?.getAttribute("data-refs-self")
+
+  if (
+    selfRefs == null ||
+    !/"(?:later|todo|now|doing|done|waiting|canceled)"/.test(selfRefs)
+  )
+    return
+
+  const block = await logseq.Editor.getBlock(blockEl!.getAttribute("blockid")!)
+
+  if (block == null) return
+
+  const key = `countdown-${block.id}`
+
+  if (parent.document.getElementById(key) != null) return
+
+  const timerData = workTimers.get(block.id)
+
+  if (timerData && timerData.at > Date.now()) {
+    renderTimer(block.id, block.uuid)
+    return
+  }
 }
 
 logseq.ready(main).catch(console.error)
