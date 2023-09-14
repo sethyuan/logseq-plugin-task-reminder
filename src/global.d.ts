@@ -7,6 +7,7 @@ declare global {
 
   interface TimerData {
     uuid: string
+    at: number
     content: string
     timerHandle: any
   }

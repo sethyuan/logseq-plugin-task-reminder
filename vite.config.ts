@@ -1,3 +1,4 @@
+import preact from "@preact/preset-vite"
 import { resolve } from "path"
 import { defineConfig } from "vite"
 import logseqPlugin from "vite-plugin-logseq"
@@ -23,6 +24,6 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [logseqPlugin()],
+    plugins: [preact(), logseqPlugin()],
   }
 })

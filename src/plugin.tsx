@@ -1,7 +1,14 @@
 import "@logseq/libs"
 import { BlockEntity, IDatom } from "@logseq/libs/dist/LSPlugin.user"
 import { setup, t } from "logseq-l10n"
-import { findAttributeChange, parseContent, parseKeywords } from "./libs/utils"
+import { render } from "preact"
+import CountDown from "./comps/CountDown"
+import {
+  findAttributeChange,
+  isHTMLElement,
+  parseContent,
+  parseKeywords,
+} from "./libs/utils"
 import zhCN from "./translations/zh-CN.json"
 
 let keywords: string[] = []
@@ -12,7 +19,7 @@ const breakTimers = new Map<number, TimerData>()
 async function main() {
   await setup({ builtinTranslations: { "zh-CN": zhCN } })
 
-  // provideStyles()
+  provideStyles()
 
   logseq.useSettingsSchema([
     {
@@ -56,7 +63,47 @@ async function main() {
 
   const transactionOff = logseq.DB.onChanged(onTransaction)
 
+  const appContainer = parent.document.getElementById("app-container")!
+  const taskObserver = new MutationObserver(async (mutations) => {
+    for (const mutation of mutations) {
+      const target = mutation.target as HTMLElement | null
+      if (target?.classList.contains("editor-wrapper")) continue
+
+      for (const node of mutation.addedNodes) {
+        if (!isHTMLElement(node)) continue
+
+        const blockEl = node.closest(".ls-block[blockid]")
+        const selfRefs = blockEl?.getAttribute("data-refs-self")
+
+        if (
+          selfRefs == null ||
+          !/"(?:later|todo|now|doing|done|waiting|canceled)"/.test(selfRefs)
+        )
+          continue
+
+        const block = await logseq.Editor.getBlock(
+          blockEl!.getAttribute("blockid")!,
+        )
+
+        if (block == null) continue
+
+        const key = `countdown-${block.id}`
+
+        if (parent.document.getElementById(key) != null) return
+
+        const timerData = workTimers.get(block.id)
+
+        if (timerData && timerData.at > Date.now()) {
+          renderTimer(block.id, block.uuid)
+          return
+        }
+      }
+    }
+  })
+  taskObserver.observe(appContainer, { childList: true, subtree: true })
+
   logseq.beforeunload(async () => {
+    taskObserver.disconnect()
     settingsOff()
     transactionOff()
   })
@@ -64,13 +111,17 @@ async function main() {
   console.log("#task-reminder loaded")
 }
 
-// function provideStyles() {
-//   logseq.provideStyle({
-//     key: "kef-tr",
-//     style: `
-//     `,
-//   })
-// }
+function provideStyles() {
+  logseq.provideStyle({
+    key: "kef-tr",
+    style: `
+    .kef-tr-countdown {
+      font-size: 0.875em;
+      color: var(--ls-active-primary-color);
+    }
+    `,
+  })
+}
 
 async function onTransaction({
   blocks,
@@ -87,25 +138,42 @@ async function onTransaction({
   if (!txMeta || txMeta["undo?"]) return
 
   if (txMeta.outlinerOp === "saveBlock" && txMeta["transact?"]) {
-    const change = findAttributeChange(
+    const doingChange = findAttributeChange(
       txData,
       "marker",
       ["LATER", "TODO", "DONE", "CANCELED", "WAITING"],
       ["NOW", "DOING"],
     )
 
-    if (!change) return
+    if (doingChange) {
+      const [eid] = doingChange
+      const block = blocks.find(({ id }) => id === eid)
 
-    const [eid] = change
-    const block = blocks.find(({ id }) => id === eid)
+      if (block == null) return
 
-    if (block == null) return
+      if (
+        logseq.settings?.onByDefault ||
+        keywords.some((kw) => block.content.includes(kw))
+      ) {
+        await triggerWorkTimer(eid, block)
+        renderTimer(eid, block.uuid)
+      }
+    } else {
+      const todoChange = findAttributeChange(
+        txData,
+        "marker",
+        ["NOW", "DOING"],
+        ["LATER", "TODO", "DONE", "CANCELED", "WAITING"],
+      )
 
-    if (
-      logseq.settings?.onByDefault ||
-      keywords.some((kw) => block.content.includes(kw))
-    ) {
-      await triggerWorkTimer(eid, block)
+      if (todoChange) {
+        const [eid] = todoChange
+        const block = blocks.find(({ id }) => id === eid)
+
+        if (block == null) return
+
+        unrenderTimer(eid, block.uuid)
+      }
     }
   }
 }
@@ -122,23 +190,22 @@ async function triggerWorkTimer(eid: number, block: BlockEntity) {
     breakTimers.delete(eid)
   }
 
-  const timerHandle = setTimeout(
-    () => onWorkTimer(eid),
-    (+logseq.settings?.workLength ?? 25) * 60 * 1000,
-  )
+  const now = Date.now()
+  const workLenMs = (+logseq.settings?.workLength ?? 25) * 60 * 1000
+  const timerHandle = setTimeout(() => onWorkTimer(eid), workLenMs)
   workTimers.set(eid, {
     uuid: block.uuid,
+    at: now + workLenMs,
     content: await parseContent(block.content),
     timerHandle,
   })
 }
 
 function triggerBreakTimer(eid: number, data: TimerData) {
-  const timerHandle = setTimeout(
-    () => onBreakTimer(eid),
-    (+logseq.settings?.breakLength ?? 5) * 60 * 1000,
-  )
-  breakTimers.set(eid, { ...data, timerHandle })
+  const now = Date.now()
+  const breakLenMs = (+logseq.settings?.breakLength ?? 5) * 60 * 1000
+  const timerHandle = setTimeout(() => onBreakTimer(eid), breakLenMs)
+  breakTimers.set(eid, { ...data, at: now + breakLenMs, timerHandle })
 }
 
 async function onWorkTimer(eid: number) {
@@ -194,6 +261,43 @@ async function changeTaskStatusBackToTodo(block: BlockEntity) {
     }
   })
   await logseq.Editor.updateBlock(block.uuid, newContent)
+}
+
+function renderTimer(eid: number, uuid: string) {
+  const data = workTimers.get(eid)
+  if (data == null) return
+
+  const key = `countdown-${eid}`
+  const path = `.ls-block[blockid="${uuid}"]:not([data-query]) span.inline`
+
+  logseq.provideUI({
+    key,
+    path,
+    template: `<span id="${key}"></span>`,
+    style: {
+      display: "inline",
+    },
+  })
+
+  setTimeout(() => {
+    const root = parent.document.getElementById(key)
+    if (root == null) return
+    render(<CountDown at={data.at} />, root)
+  }, 0)
+}
+
+function unrenderTimer(eid: number, uuid: string) {
+  const key = `countdown-${eid}`
+  const path = `.ls-block[blockid="${uuid}"]:not([data-query]) span.inline`
+
+  logseq.provideUI({
+    key,
+    path,
+    template: "",
+    style: {
+      display: "inline",
+    },
+  })
 }
 
 logseq.ready(main).catch(console.error)

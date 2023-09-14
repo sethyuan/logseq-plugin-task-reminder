@@ -68,3 +68,16 @@ export async function parseContent(content: string) {
 
   return content
 }
+
+export function formatTimeInterval(diff: number) {
+  const seconds = ~~(diff / 1000)
+  const mins = ~~(seconds / 60)
+  const secs = seconds % 60
+  return `${mins.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`
+}
+
+export function isHTMLElement(node: any): node is HTMLElement {
+  return node.querySelector != null
+}

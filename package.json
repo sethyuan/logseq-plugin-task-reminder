@@ -1,6 +1,6 @@
 {
   "name": "logseq-plugin-task-reminder",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "main": "dist/index.html",
   "logseq": {
     "id": "_sethyuan-logseq-task-reminder",
@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@logseq/libs": "^0.0.15",
-    "logseq-l10n": "^0.2.0"
+    "logseq-l10n": "^0.2.0",
+    "preact": "^10.16.0",
+    "reactutils": "^5.13.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.5.0",
