@@ -120,12 +120,7 @@ async function onTransaction({
   if (!txMeta || txMeta["undo?"]) return
 
   if (txMeta.outlinerOp === "saveBlock" && txMeta["transact?"]) {
-    const doingChange = findAttributeChange(
-      txData,
-      "marker",
-      ["LATER", "TODO", "DONE", "CANCELED", "WAITING"],
-      ["NOW", "DOING"],
-    )
+    const doingChange = findAttributeChange(txData, "marker", ["NOW", "DOING"])
 
     if (doingChange) {
       const [eid] = doingChange
@@ -141,12 +136,13 @@ async function onTransaction({
         renderTimer(eid, block.uuid)
       }
     } else {
-      const todoChange = findAttributeChange(
-        txData,
-        "marker",
-        ["NOW", "DOING"],
-        ["LATER", "TODO", "DONE", "CANCELED", "WAITING"],
-      )
+      const todoChange = findAttributeChange(txData, "marker", [
+        "LATER",
+        "TODO",
+        "DONE",
+        "CANCELED",
+        "WAITING",
+      ])
 
       if (todoChange) {
         const [eid] = todoChange
@@ -287,11 +283,7 @@ function unrenderTimer(eid: number, uuid: string) {
 async function renderTimerIfAny(blockEl: Element | null) {
   const selfRefs = blockEl?.getAttribute("data-refs-self")
 
-  if (
-    selfRefs == null ||
-    !/"(?:later|todo|now|doing|done|waiting|canceled)"/.test(selfRefs)
-  )
-    return
+  if (selfRefs == null || !/"(?:now|doing)"/.test(selfRefs)) return
 
   const block = await logseq.Editor.getBlock(blockEl!.getAttribute("blockid")!)
 

@@ -5,32 +5,25 @@ const TASK_REGEX = /^(?:TODO|LATER|DOING|NOW|DONE|CANCELED|WAITING) /
 export function findAttributeChange<T>(
   txData: IDatom[],
   attribute: string,
-  from: T[],
   to: T[],
-): [number, T, T] | null {
+): [number, T | undefined, T] | null {
   let foundFrom: T | undefined
   let foundTo: T | undefined
   let foundEid: number | undefined
 
   for (const [eid, attr, val, , added] of txData) {
-    if (attr === attribute && from.includes(val) && !added) {
+    if (attr === attribute && !added) {
       foundFrom = val
-      foundEid = eid
       continue
     }
-    if (
-      foundFrom &&
-      eid === foundEid &&
-      attr === attribute &&
-      to.includes(val) &&
-      added
-    ) {
+    if (attr === attribute && to.includes(val) && added) {
+      foundEid = eid
       foundTo = val
       break
     }
   }
 
-  if (foundFrom && foundTo) {
+  if (foundTo) {
     return [foundEid!, foundFrom, foundTo]
   }
 
