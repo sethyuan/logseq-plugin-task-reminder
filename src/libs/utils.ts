@@ -43,7 +43,10 @@ export async function parseContent(content: string) {
   content = content.replace(TASK_REGEX, "")
 
   // Remove properties.
-  content = content.replace(/\b[^:\n]+:: [^\n]+/g, "")
+  content = content.replace(/^.+:: .+$/gm, "")
+
+  // Remove logbook
+  content = content.replace(/:LOGBOOK:(.|\n)+:END:/g, "")
 
   // Replace block refs with their content.
   let match
