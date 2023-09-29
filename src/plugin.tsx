@@ -141,6 +141,7 @@ async function onTransaction({
         "TODO",
         "DONE",
         "CANCELED",
+        "CANCELLED",
         "WAITING",
       ])
 
