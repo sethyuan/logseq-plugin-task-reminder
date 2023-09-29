@@ -1,6 +1,6 @@
 import { IDatom } from "@logseq/libs/dist/LSPlugin.user"
 
-const TASK_REGEX = /^(?:TODO|LATER|DOING|NOW|DONE|CANCELED|WAITING) /
+const TASK_REGEX = /^(?:TODO|LATER|DOING|NOW|DONE|CANCEL{1,2}ED|WAITING) /
 
 export function findAttributeChange<T>(
   txData: IDatom[],
