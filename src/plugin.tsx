@@ -37,6 +37,13 @@ async function main() {
       description: t("Break time in minutes."),
     },
     {
+      key: "loopNum",
+      type: "number",
+      default: 1,
+      title: "",
+      description: t("Loop automatically the number of times specified."),
+    },
+    {
       key: "onByDefault",
       type: "boolean",
       default: false,
@@ -177,6 +184,7 @@ async function triggerWorkTimer(eid: number, block: BlockEntity) {
     at: now + workLenMs,
     content: await parseContent(block.content),
     timerHandle,
+    loopNum: workData?.loopNum != null ? workData.loopNum + 1 : 1,
   })
 }
 
@@ -191,7 +199,9 @@ async function onWorkTimer(eid: number) {
   const workData = workTimers.get(eid)
   if (!workData) return
 
-  workTimers.delete(eid)
+  if (workData.loopNum >= logseq.settings?.loopNum) {
+    workTimers.delete(eid)
+  }
 
   const block = await logseq.Editor.getBlock(eid)
   if (block == null) return
@@ -199,7 +209,7 @@ async function onWorkTimer(eid: number) {
 
   showNotification(t("Break Time"), workData.content, workData.uuid)
 
-  await changeTaskStatusBackToTodo(block)
+  await changeTaskStatus(block, false)
 
   triggerBreakTimer(eid, workData)
 }
@@ -215,6 +225,10 @@ async function onBreakTimer(eid: number) {
   if (!["TODO", "LATER"].includes(block.marker)) return
 
   showNotification(t("Work Time Again"), breakData.content, breakData.uuid)
+
+  if (breakData.loopNum < +logseq.settings?.loopNum) {
+    await changeTaskStatus(block, true)
+  }
 }
 
 function showNotification(title: string, content: string, uuid: string) {
@@ -228,17 +242,31 @@ function showNotification(title: string, content: string, uuid: string) {
   }
 }
 
-async function changeTaskStatusBackToTodo(block: BlockEntity) {
-  const newContent = block.content.replace(/^(DOING|NOW) /, (matched) => {
-    switch (matched) {
-      case "DOING ":
-        return "TODO "
-      case "NOW ":
-        return "LATER "
-      default:
-        return "LATER "
-    }
-  })
+async function changeTaskStatus(block: BlockEntity, doing: boolean) {
+  const newContent = block.content.replace(
+    !doing ? /^(DOING|NOW) / : /^(TODO|LATER) /,
+    (matched) => {
+      if (!doing) {
+        switch (matched) {
+          case "DOING ":
+            return "TODO "
+          case "NOW ":
+            return "LATER "
+          default:
+            return "LATER "
+        }
+      } else {
+        switch (matched) {
+          case "TODO ":
+            return "DOING "
+          case "LATER ":
+            return "NOW "
+          default:
+            return "NOW "
+        }
+      }
+    },
+  )
   await logseq.Editor.updateBlock(block.uuid, newContent)
 }
 

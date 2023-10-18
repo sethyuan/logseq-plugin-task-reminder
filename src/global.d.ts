@@ -10,6 +10,7 @@ declare global {
     at: number
     content: string
     timerHandle: any
+    loopNum: number
   }
 }
 
