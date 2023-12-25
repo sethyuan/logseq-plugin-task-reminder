@@ -126,7 +126,7 @@ async function onTransaction({
 }) {
   if (!txMeta || txMeta["undo?"]) return
 
-  if (txMeta.outlinerOp === "saveBlock" && txMeta["transact?"]) {
+  if (txMeta.outlinerOp === "save-block" && txMeta["transact?"]) {
     const doingChange = findAttributeChange(txData, "marker", ["NOW", "DOING"])
 
     if (doingChange) {
